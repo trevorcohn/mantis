@@ -1,5 +1,5 @@
 # mantis
-Deep learning model of machine translation using attentional and structural biases
+Deep learning models of machine translation using attentional and structural biases
 
 ## Introduction
 
@@ -7,14 +7,47 @@ Deep learning model of machine translation using attentional and structural bias
 
 ### Building
 
-cd $HOME/mantis/src
+mantis has been developed using external libraries, including cylab's cnn (https://github.com/clab/cnn.git) and eigen (https://bitbucket.org/eigen/eigen).
 
-PATH_TO_CNN=$HOME/cnn/
-PATH_TO_EIGEN=$HOME/cnn/eigen/
+Let's assume:
 
-CPU: g++ -g -o attentional attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
++ PATH_TO_CNN=$HOME/cnn/
+
++ PATH_TO_EIGEN=$HOME/cnn/eigen/
+
+First, we need to build cnn both in CPU and GPU versions.
+
+* To build cnn with CPU-based version:
+
+>> mkdir PATH_TO_CNN/build
+
+>> cd PATH_TO_CNN/build
+
+>> cmake .. -DEIGEN3_INCLUDE_DIR=PATH_TO_EIGEN
+
+>> make -j 4
+
+* To build cnn with GPU-based version:
+
+>> mkdir PATH_TO_CNN/build-cuda
+
+>> cd PATH_TO_CNN/build-cuda
+
+>> cmake .. -DBACKEND=cuda -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-7.5/
+
+>> make -j 4
+
+Next, we build our attentional model as follows:
+
+>> cd $HOME/mantis/src
+
++ CPU version: 
+
+>> g++ -g -o attentional attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
  
-GPU: g++ -g -o attentional-gpu attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
++ GPU version: 
+
+>> g++ -g -o attentional-gpu attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
 
 ## Contacts
 
