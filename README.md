@@ -76,7 +76,7 @@ then, do the following:
 
 >> Add ' --compiler-options "-fPIC"' to the following line:
 
-cd /home/vhoang2/works/mantis/cnn/build-cuda/cnn && /usr/local/cuda-7.0/bin/nvcc -m64 -ccbin "/usr/bin/cc" <b>--compiler-options "-fPIC"</b> -dlink /home/vhoang2/works/mantis/cnn/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir//./cnncuda_shared_generated_gpu-ops.cu.o -o /home/vhoang2/works/mantis/cnn/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir/./cnncuda_shared_intermediate_link.o
+cd $PATH_TO_CNN/build-cuda/cnn && /usr/local/cuda-7.0/bin/nvcc -m64 -ccbin "/usr/bin/cc" <b>--compiler-options "-fPIC"</b> -dlink $PATH_TO_CNN/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir//./cnncuda_shared_generated_gpu-ops.cu.o -o $PATH_TO_CNN/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir/./cnncuda_shared_intermediate_link.o
 
 >> make clean && make -j 4
 
@@ -89,10 +89,14 @@ Next, we build our attentional model as follows:
 + CPU version: 
 
 >> g++ -g -o attentional attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
+
+>> g++ -g -o biattentional biattentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
  
 + GPU version: 
 
->> g++ -g -o attentional-gpu attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
+>> g++ -g -o attentional-gpu attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
+
+>> g++ -g -o biattentional-gpu biattentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
 
 ## Contacts
 
