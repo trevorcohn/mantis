@@ -100,11 +100,11 @@ Next, we build our attentional model as follows:
 
 ## Contacts
 
-1) Trevor Cohn (t.cohn@unimelb.edu.au)
+1) Trevor Cohn 
 
-2) Hoang Cong Duy Vu (vhoang2@student.unimelb.edu.au or duyvuleo@gmail.com)
+2) Hoang Cong Duy Vu
 
-3) Reza Haffari (gholamreza.haffari@monash.edu)
+3) Reza Haffari 
 
 ---
 Updated on April 2016
