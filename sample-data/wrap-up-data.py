@@ -15,14 +15,14 @@ def threshold_vocab(fname, threshold):
             ok.add(word)
     return ok
 
-def process_corpus(sf, tf, of, sv=source_vocab, tv=target_vocab):
+def process_corpus(sf, tf, of, sv, tv):
     with open(of, 'w') as fout:
         with open(sf) as sin:
             with open(tf) as tin:
                 for sline, tline in itertools.izip(sin, tin):
                     print >>fout, '<s>',
                     for token in tline.split():
-                        if token in target_vocab:
+                        if token in tv:
                             print >>fout, token,
                         else:
                             print >>fout, '<unk>',
@@ -30,19 +30,19 @@ def process_corpus(sf, tf, of, sv=source_vocab, tv=target_vocab):
 
 		    print >>fout, '<s>',
                     for token in sline.split():
-                        if token in source_vocab:
+                        if token in sv:
                             print >>fout, token,
                         else:
                             print >>fout, '<unk>',
                     print >>fout, '</s>'
 
-def process_test(sf, of, sv=source_vocab):
+def process_test(sf, of, sv):
     with open(of, 'w') as fout:
         with open(sf) as sin:
                 for sline in sin:
                     print >>fout, '<s>',
                     for token in sline.split():
-                        if token in source_vocab:
+                        if token in sv:
                             print >>fout, token,
                         else:
                             print >>fout, '<unk>',

@@ -141,7 +141,7 @@ Corpus read_corpus(const string &filename)
     while(getline(in, line)) {
         ++lc;
         Sentence source, target;
-        ReadSentencePair(line, &source, &sd, &target, &td);
+        read_sentence_pair(line, &source, &sd, &target, &td);
         corpus.push_back(SentencePair(source, target));
         stoks += source.size();
         ttoks += target.size();
@@ -157,7 +157,7 @@ Corpus read_corpus(const string &filename)
 }
 
 int main(int argc, char** argv) {
-    cnn::Initialize(argc, argv);
+    cnn::initialize(argc, argv);
 
     // command line processing
     variables_map vm; 
@@ -195,10 +195,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    kSRC_SOS = sd.Convert("<s>");
-    kSRC_EOS = sd.Convert("</s>");
-    kTGT_SOS = td.Convert("<s>");
-    kTGT_EOS = td.Convert("</s>");
+    kSRC_SOS = sd.convert("<s>");
+    kSRC_EOS = sd.convert("</s>");
+    kTGT_SOS = td.convert("<s>");
+    kTGT_EOS = td.convert("</s>");
 
     typedef vector<int> Sentence;
     typedef pair<Sentence, Sentence> SentencePair;
@@ -206,8 +206,8 @@ int main(int argc, char** argv) {
     string line;
     cerr << "Reading training data from " << vm["train"].as<string>() << "...\n";
     training = read_corpus(vm["train"].as<string>());
-    sd.Freeze(); // no new word types allowed
-    td.Freeze(); // no new word types allowed
+    sd.freeze(); // no new word types allowed
+    td.freeze(); // no new word types allowed
     VOCAB_SIZE_SRC = sd.size();
     VOCAB_SIZE_TGT = td.size();
 
@@ -343,10 +343,10 @@ int main(int argc, char** argv) {
 
             cout << i << " |||";
             for (auto &w: testing[i].first)
-                cout << " " << sd.Convert(w);
+                cout << " " << sd.convert(w);
             cout << " |||";
             for (auto &w: testing[i].second)
-                cout << " " << td.Convert(w);
+                cout << " " << td.convert(w);
             cout << " ||| " << (loss_s2t / (testing[i].second.size()-1))
                 << " " << (loss_t2s / (testing[i].first.size()-1))
                 << " " << (loss_trace / (std::max(testing[i].first.size(), testing[i].second.size())-1)) 

@@ -45,7 +45,7 @@ template <class rnn_t>
 int main_body(variables_map vm);
 
 int main(int argc, char** argv) {
-    cnn::Initialize(argc, argv);
+    cnn::initialize(argc, argv);
 
     // command line processing
     variables_map vm; 
@@ -119,16 +119,16 @@ template <class AM_t> void fert_stats(Model &model, AM_t &am, Corpus &devel, boo
 const Sentence* context(const Corpus &corpus, unsigned i);
 
 Corpus read_corpus(const string &filename, bool doco);
-std::vector<int> ReadNumberedSentence(const std::string& line, Dict* sd, std::vector<int> &ids);
-void ReadNumberedSentencePair(const std::string& line, std::vector<int>* s, Dict* sd, std::vector<int>* t, Dict* td, std::vector<int> &ids);
+std::vector<int> read_numbered_sentence(const std::string& line, Dict* sd, std::vector<int> &ids);
+void read_numbered_sentence_pair(const std::string& line, std::vector<int>* s, Dict* sd, std::vector<int>* t, Dict* td, std::vector<int> &ids);
 
 template <class rnn_t>
 int main_body(variables_map vm)
 {
-    kSRC_SOS = sd.Convert("<s>");
-    kSRC_EOS = sd.Convert("</s>");
-    kTGT_SOS = td.Convert("<s>");
-    kTGT_EOS = td.Convert("</s>");
+    kSRC_SOS = sd.convert("<s>");
+    kSRC_EOS = sd.convert("</s>");
+    kTGT_SOS = td.convert("<s>");
+    kTGT_EOS = td.convert("</s>");
     verbose = vm.count("verbose");
 
     LAYERS = vm["layers"].as<int>(); 
@@ -152,8 +152,8 @@ int main_body(variables_map vm)
     string line;
     cerr << "Reading training data from " << vm["train"].as<string>() << "...\n";
     training = read_corpus(vm["train"].as<string>(), doco);
-    sd.Freeze(); // no new word types allowed
-    td.Freeze(); // no new word types allowed
+    sd.freeze(); // no new word types allowed
+    td.freeze(); // no new word types allowed
     
     SRC_VOCAB_SIZE = sd.size();
     TGT_VOCAB_SIZE = td.size();
@@ -268,10 +268,10 @@ void test_rescore(Model &model, AM_t &am, Corpus &testing, bool doco)
 	double loss = as_scalar(cg.forward());
         cout << i << " |||";
 	for (auto &w: ssent)
-	    cout << " " << sd.Convert(w);
+	    cout << " " << sd.convert(w);
 	cout << " |||";
 	for (auto &w: tsent)
-	    cout << " " << td.Convert(w);
+	    cout << " " << td.convert(w);
 	cout << " ||| " << (loss / (tsent.size()-1)) << endl;
 	tloss += loss;
 	tchars += tsent.size() - 1;
@@ -301,9 +301,9 @@ void test_decode(Model &model, AM_t &am, string test_file, bool doco, int beam)
     while (getline(in, line)) {
         vector<int> num;
         if (doco)
-            source = ReadNumberedSentence(line, &sd, num);
+            source = read_numbered_sentence(line, &sd, num);
         else 
-            source = ReadSentence(line, &sd);
+            source = read_sentence(line, &sd);
 
 	if (source.front() != kSRC_SOS && source.back() != kSRC_EOS) {
 	    cerr << "Sentence in " << test_file << ":" << lno << " didn't start or end with <s>, </s>\n";
@@ -321,7 +321,7 @@ void test_decode(Model &model, AM_t &am, string test_file, bool doco, int beam)
         bool first = true;
 	for (auto &w: target) {
             if (!first) cout << " ";
-            cout << td.Convert(w);
+            cout << td.convert(w);
             first = false;
         }
 	cout << endl;
@@ -371,9 +371,9 @@ void test_kbest_arcs(Model &model, AM_t &am, string test_file, int top_k)
                 double loss = as_scalar(cg.incremental_forward());
 
                 //cout << last_last_id << ":" << last_id << " |||";
-                //for (auto &w: source) cout << " " << sd.Convert(w);
+                //for (auto &w: source) cout << " " << sd.convert(w);
                 //cout << " |||";
-                //for (auto &w: target) cout << " " << td.Convert(w);
+                //for (auto &w: target) cout << " " << td.convert(w);
                 //cout << " ||| " << loss << "\n";
                 cout << snum << '\t' << i << '\t' << j << '\t' << loss << '\n';
                 ++count;
@@ -391,8 +391,8 @@ void test_kbest_arcs(Model &model, AM_t &am, string test_file, int top_k)
 	while(in) {
 	    in >> word;
 	    if (word.empty() || word == sep) break;
-	    source.push_back(sd.Convert(word));
-	    target.push_back(td.Convert(word));
+	    source.push_back(sd.convert(word));
+	    target.push_back(td.convert(word));
 	}
 
 	if ((source.front() != kSRC_SOS && source.back() != kSRC_EOS) ||
@@ -589,13 +589,13 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
 
             // grab the parts of the objective
             loss += as_scalar(cg.get_value(xent.i));
-            if (coverage < 0) 
+            if (coverage > 0) 
                 penalty += as_scalar(cg.get_value(coverage_penalty.i));
             if (fert) 
                 loss_fert += as_scalar(cg.get_value(fertility_nll.i));
-            
+
             cg.backward();
-            sgd.update();
+	    sgd.update();
             ++lines;
 
 	    if (verbose) {
@@ -656,9 +656,9 @@ Corpus read_corpus(const string &filename, bool doco)
         ++lc;
         Sentence source, target;
         if (doco) 
-            ReadNumberedSentencePair(line, &source, &sd, &target, &td, identifiers);
+            read_numbered_sentence_pair(line, &source, &sd, &target, &td, identifiers);
         else
-            ReadSentencePair(line, &source, &sd, &target, &td);
+            read_sentence_pair(line, &source, &sd, &target, &td);
         corpus.push_back(SentencePair(source, target, identifiers[0]));
         stoks += source.size();
         ttoks += target.size();
@@ -673,7 +673,7 @@ Corpus read_corpus(const string &filename, bool doco)
     return corpus;
 }
 
-std::vector<int> ReadNumberedSentence(const std::string& line, Dict* sd, vector<int> &identifiers) {
+std::vector<int> read_numbered_sentence(const std::string& line, Dict* sd, vector<int> &identifiers) {
     std::istringstream in(line);
     std::string word;
     std::vector<int> res;
@@ -690,13 +690,13 @@ std::vector<int> ReadNumberedSentence(const std::string& line, Dict* sd, vector<
     while(in) {
         in >> word;
         if (!in || word.empty()) break;
-        res.push_back(sd->Convert(word));
+        res.push_back(sd->convert(word));
     }
     return res;
 }
 
 
-void ReadNumberedSentencePair(const std::string& line, std::vector<int>* s, Dict* sd, std::vector<int>* t, Dict* td, vector<int> &identifiers) 
+void read_numbered_sentence_pair(const std::string& line, std::vector<int>* s, Dict* sd, std::vector<int>* t, Dict* td, vector<int> &identifiers) 
 {
     std::istringstream in(line);
     std::string word;
@@ -717,7 +717,7 @@ void ReadNumberedSentencePair(const std::string& line, std::vector<int>* s, Dict
         in >> word;
         if (!in) break;
         if (word == sep) { d = td; v = t; continue; }
-        v->push_back(d->Convert(word));
+        v->push_back(d->convert(word));
     }
 }
 
