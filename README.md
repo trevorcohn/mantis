@@ -27,9 +27,11 @@ First, please clone it via our github link (https://github.com/trevorcohn/mantis
 
 >> cd $HOME/mantis && hg clone https://bitbucket.org/eigen/eigen/
 
+Currently, mantis has been upgraded to be compatible with cnn version 2. Thus, please use the cnn version 2 by git-cloning it via "git clone -b v2 https://github.com/clab/cnn.git" instead.
+
 Let's assume:
 
-+ $PATH_TO_CNN=$HOME/mantis/cnn/
++ $PATH_TO_CNN=$HOME/mantis/cnn-v2/
 
 + $PATH_TO_EIGEN=$HOME/mantis/eigen/
 
@@ -57,7 +59,7 @@ First, we need to build cnn both in CPU and GPU versions.
 
 >> make -j 4
 
-Please note that if you encounter the following compilation error, e.g.:
+Please note that if you encounter the following compilation error (which should not happen in the latest cnn-v2), e.g.:
 
 ---
 
