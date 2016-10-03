@@ -1,113 +1,104 @@
 # mantis
-Deep learning models of machine translation using attentional and structural biases
 
-## Introduction
+Deep learning models of machine translation using attention and structural bias. This is build on top of the cnn neural network library, using
+C++. Please refer to the [cnn github page](http://github.com/clab/cnn) for more details, including some issues with compiling and running with
+the library. 
 
-This code is an implementation of the following work:
+This code is an implementation of the following paper:
 
-Incorporating Structural Alignment Biases into an Attentional Neural Translation Model. Trevor Cohn, Cong Duy Vu Hoang, Ekaterina Vymolova, Kaisheng Yao, Chris Dyer and Gholamreza Haffari. In Proceedings of NAACL-16, 2016. (long paper)
+    Incorporating Structural Alignment Biases into an Attentional Neural Translation Model. 
+    Trevor Cohn, Cong Duy Vu Hoang, Ekaterina Vymolova, Kaisheng Yao, Chris Dyer and Gholamreza Haffari. 
+    In Proceedings of NAACL-16, 2016. (long paper)
 
-### Features
+Please cite the above paper if you use or extend this code.
 
-(to be updated)
+### Dependencies
+
+Before compiling cnn, you need:
+    * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release)
+    * [cuda 7.5 or higher](https://developer.nvidia.com/cuda-toolkit)
 
 ### Building
 
-mantis has been developed using external libraries, including cylab's cnn (https://github.com/clab/cnn.git) and eigen (https://bitbucket.org/eigen/eigen).
+First, clone the repository
 
-First, please clone it via our github link (https://github.com/trevorcohn/mantis.git), then do the followings:
+    git clone https://github.com/trevorcohn/mantis.git
 
->> git clone https://github.com/trevorcohn/mantis.git
+Next pull down the submodules (cnn)
 
->> cd $HOME/mantis
+    cd mantis
+    git submodule init 
+    git submodule update
 
->> git submodule init 
+As mentioned above, you'll need the latest development version of eigen
 
->> git submodule update
+    hg clone https://bitbucket.org/eigen/eigen/
 
->> cd $HOME/mantis && hg clone https://bitbucket.org/eigen/eigen/
+#### CPU build
 
-Currently, mantis has been upgraded to be compatible with cnn version 2. Thus, please use the cnn version 2 by git-cloning it via "git clone -b v2 https://github.com/clab/cnn.git" instead.
+Compiling to execute on a CPU is as follows
 
-Let's assume:
+    mkdir build_cpu
+    cd build_cpu
+    cmake .. -DEIGEN3_INCLUDE_DIR=eigen
+    make -j 2
 
-+ $PATH_TO_CNN=$HOME/mantis/cnn-v2/
+substiting in a different path to eigen if you have placed in a different directory.
 
-+ $PATH_TO_EIGEN=$HOME/mantis/eigen/
+This will build the two binaries
+    
+    build_cpu/src/attentional
+    build_cpu/src/biattentional
 
-+ $PATH_TO_CUDA=/usr/local/cuda-7.5/
 
-First, we need to build cnn both in CPU and GPU versions.
+#### GPU build
 
-* To build cnn with CPU-based version:
+Building on the GPU uses the Nvida CUDA library, currently tested against version 7.5.
+The process is as follows
 
->> mkdir $PATH_TO_CNN/build
+    mkdir build_gpu
+    cd build_gpu
+    cmake .. -DBACKED=cuda -DEIGEN3_INCLUDE_DIR=eigen -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda 
+    make -j 2
 
->> cd $PATH_TO_CNN/build
+substituting in your Eigen and CUDA folder, as appropriate.
 
->> cmake .. -DEIGEN3_INCLUDE_DIR=$PATH_TO_EIGEN
+This will result in the two binaries
 
->> make -j 4
+    build_gpu/src/attentional
+    build_gpu/src/biattentional
 
-* To build cnn with GPU-based version:
+#### Using the model
 
->> mkdir $PATH_TO_CNN/build-cuda
+The model can be run as follows
 
->> cd $PATH_TO_CNN/build-cuda
+    ./build_cpu/src/attentional -t sample-data/train.de-en.unk.cap -d sample-data/dev.de-en.unk.cap 
 
->> cmake .. -DBACKEND=cuda -DCUDA_TOOLKIT_ROOT_DIR=$PATH_TO_CUDA
+which will train a small model on a tiny training set, i.e.,
 
->> make -j 4
+    [cnn] random seed: 978201625
+    [cnn] allocating memory: 512MB
+    [cnn] memory allocation done.
+    Reading training data from sample-data/train.de-en.unk.cap...
+    5000 lines, 117998 & 105167 tokens (s & t), 2738 & 2326 types
+    Reading dev data from sample-data/dev.de-en.unk.cap...
+    100 lines, 1800 & 1840 tokens (s & t), 2738 & 2326 types
+    Parameters will be written to: am_1_64_32_RNN_b0_g000_d0-pid48778.params
+    %% Using RNN recurrent units
+    **SHUFFLE
+    [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.77713 ppl=322.832 [completed in 192.254 ms]
+    [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.12047 ppl=167.415 [completed in 188.866 ms]
+    [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.36808 ppl=214.451 [completed in 153.08 ms]
+    ...
 
-Please note that if you encounter the following compilation error (which should not happen in the latest cnn-v2), e.g.:
+Every so often the development performance is measured, and the best scoring model will be saved to disk.
 
----
-
-Linking CXX shared library libcnncuda_shared.so
-
-/usr/bin/ld: CMakeFiles/cnncuda_shared.dir/./cnncuda_shared_intermediate_link.o: relocation R_X86_64_32S against `__nv_module_id' can not be used when making a shared object; recompile with -fPIC
-CMakeFiles/cnncuda_shared.dir/./cnncuda_shared_intermediate_link.o: error adding symbols: Bad value
-
----
-
-then, do the following:
-
->> do the "cmake ..." thing as mentioned earlier
-
-(inside build-cuda directory) >> vim -v ./cnn/CMakeFiles/cnncuda_shared.dir/build.make
-
->> Add ' --compiler-options "-fPIC"' to the following line:
-
-cd $PATH_TO_CNN/build-cuda/cnn && /usr/local/cuda-7.0/bin/nvcc -m64 -ccbin "/usr/bin/cc" <b>--compiler-options "-fPIC"</b> -dlink $PATH_TO_CNN/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir//./cnncuda_shared_generated_gpu-ops.cu.o -o $PATH_TO_CNN/build-cuda/cnn/CMakeFiles/cnncuda_shared.dir/./cnncuda_shared_intermediate_link.o
-
->> make clean && make -j 4
-
-(make sure the progress is 100% done!)
-
-Next, we build our attentional model as follows:
-
->> cd $HOME/mantis/src
-
-+ CPU version: 
-
->> g++ -g -o attentional attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
-
->> g++ -g -o biattentional biattentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build/cnn -lcnn
- 
-+ GPU version: 
-
->> g++ -g -o attentional-gpu attentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
-
->> g++ -g -o biattentional-gpu biattentional.cc -I/$PATH_TO_CNN -I/$PATH_TO_EIGEN -I/usr/local/cuda-7.0/include -std=c++11 -L/usr/lib -lboost_program_options -lboost_serialization -lboost_system -lboost_filesystem -L/$PATH_TO_CNN/build-cuda/cnn -lcnn -lcnncuda -DHAVE_CUDA -L/usr/local/cuda-7.0/targets/x86_64-linux/lib -lcudart -lcublas
+The binaries have command line help, and their usage is illustrated in the *scripts/* folder. This includes
+decoding.
 
 ## Contacts
 
-1) Trevor Cohn 
-
-2) Hoang Cong Duy Vu
-
-3) Reza Haffari 
+Trevor Cohn, Hoang Cong Duy Vu and Reza Haffari 
 
 ---
-Updated on April 2016
-
+Updated October 2016
