@@ -15,8 +15,8 @@ Please cite the above paper if you use or extend this code.
 ### Dependencies
 
 Before compiling cnn, you need:
-    * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release)
-    * [cuda 7.5 or higher](https://developer.nvidia.com/cuda-toolkit)
+ * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release)
+ * [cuda](https://developer.nvidia.com/cuda-toolkit) version 7.5 or higher
 
 ### Building
 
