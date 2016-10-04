@@ -43,7 +43,7 @@ Compiling to execute on a CPU is as follows
     cmake .. -DEIGEN3_INCLUDE_DIR=eigen
     make -j 2
 
-substiting in a different path to eigen if you have placed in a different directory.
+substituting in a different path to eigen if you have placed in a different directory.
 
 This will build the two binaries
     
@@ -53,7 +53,7 @@ This will build the two binaries
 
 #### GPU build
 
-Building on the GPU uses the Nvida CUDA library, currently tested against version 7.5.
+Building on the GPU uses the Nvidia CUDA library, currently tested against version 7.5.
 The process is as follows
 
     mkdir build_gpu
@@ -93,7 +93,7 @@ which will train a small model on a tiny training set, i.e.,
 
 Every so often the development performance is measured, and the best scoring model will be saved to disk.
 
-If you want to build a large network, you need to indicate the memory usage (--cnn-mem FORWARD_MEM,BACKWARD_MEM,PARAMETERS_MEM) for cnn backend, e.g.
+If you want to build a large network, you will need to indicate the memory usage (*--cnn-mem FORWARD_MEM,BACKWARD_MEM,PARAMETERS_MEM*) for cnn backend, e.g.,
 
     ./build_cpu/src/attentional --cnn-mem 3000 -t sample-data/train.de-en.unk.cap -d sample-data/dev.de-en.unk.cap
   
