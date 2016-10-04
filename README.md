@@ -76,6 +76,7 @@ The model can be run as follows
 
 which will train a small model on a tiny training set, i.e.,
 
+    (CPU)
     [cnn] random seed: 978201625
     [cnn] allocating memory: 512MB
     [cnn] memory allocation done.
@@ -89,6 +90,46 @@ which will train a small model on a tiny training set, i.e.,
     [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.77713 ppl=322.832 [completed in 192.254 ms]
     [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.12047 ppl=167.415 [completed in 188.866 ms]
     [epoch=0 eta=0.1 clips=50 updates=50]  E = 5.36808 ppl=214.451 [completed in 153.08 ms]
+    ...
+
+    (GPU)
+    [cnn] initializing CUDA
+    Request for 1 GPU ...
+    [cnn] Device Number: 0
+    [cnn]   Device name: GeForce GTX TITAN X
+    [cnn]   Memory Clock Rate (KHz): 3505000
+    [cnn]   Memory Bus Width (bits): 384
+    [cnn]   Peak Memory Bandwidth (GB/s): 336.48
+    [cnn]   Memory Free (GB): 0.0185508/12.8847
+    [cnn]
+    [cnn] Device Number: 1
+    [cnn]   Device name: GeForce GTX TITAN X
+    [cnn]   Memory Clock Rate (KHz): 3505000
+    [cnn]   Memory Bus Width (bits): 384
+    [cnn]   Peak Memory Bandwidth (GB/s): 336.48
+    [cnn]   Memory Free (GB): 6.31144/12.8847
+    [cnn]
+    [cnn] Device Number: 2
+    [cnn]   Device name: GeForce GTX TITAN X
+    [cnn]   Memory Clock Rate (KHz): 3505000
+    [cnn]   Memory Bus Width (bits): 384
+    [cnn]   Peak Memory Bandwidth (GB/s): 336.48
+    [cnn]   Memory Free (GB): 0.0185508/12.8847
+    [cnn] ...
+    [cnn] Device(s) selected: 6
+    [cnn] random seed: 2080175584
+    [cnn] allocating memory: 512MB
+    [cnn] memory allocation done.
+    Reading training data from sample-data/train.de-en.unk.cap...
+    5000 lines, 117998 & 105167 tokens (s & t), 2738 & 2326 types
+    Reading dev data from sample-data/dev.de-en.unk.cap...
+    100 lines, 1800 & 1840 tokens (s & t), 2738 & 2326 types
+    Parameters will be written to: am_1_64_32_RNN_b0_g000_d0-pid14453.params
+    %% Using RNN recurrent units
+    **SHUFFLE
+    [epoch=0 eta=0.01 clips=0 updates=50]  E = 6.12625 ppl=457.718 [completed in 724.351 ms]
+    [epoch=0 eta=0.01 clips=0 updates=50]  E = 5.23731 ppl=188.163 [completed in 714.797 ms]
+    [epoch=0 eta=0.01 clips=0 updates=50]  E = 5.37111 ppl=215.102 [completed in 796.774 ms]
     ...
 
 Every so often the development performance is measured, and the best scoring model will be saved to disk.
