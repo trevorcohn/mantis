@@ -15,7 +15,7 @@ Please cite the above paper if you use or extend this code.
 ### Dependencies
 
 Before compiling cnn, you need:
- * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release)
+ * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release), e.g. 3.3.beta2
  * [cuda](https://developer.nvidia.com/cuda-toolkit) version 7.5 or higher
 
 ### Building
@@ -92,6 +92,12 @@ which will train a small model on a tiny training set, i.e.,
     ...
 
 Every so often the development performance is measured, and the best scoring model will be saved to disk.
+
+If you want to build a large network, you need to indicate the memory usage (--cnn-mem FORWARD_MEM,BACKWARD_MEM,PARAMETERS_MEM) for cnn backend, e.g.
+
+    ./build_cpu/src/attentional --cnn-mem 3000 -t sample-data/train.de-en.unk.cap -d sample-data/dev.de-en.unk.cap
+  
+    ./build_cpu/src/attentional --cnn-mem 1000,1000,2000 -t sample-data/train.de-en.unk.cap -d sample-data/dev.de-en.unk.cap
 
 The binaries have command line help, and their usage is illustrated in the *scripts/* folder. This includes
 decoding.
