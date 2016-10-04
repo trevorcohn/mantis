@@ -58,7 +58,7 @@ The process is as follows
 
     mkdir build_gpu
     cd build_gpu
-    cmake .. -DBACKED=cuda -DEIGEN3_INCLUDE_DIR=eigen -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda 
+    cmake .. -DBACKEND=cuda -DEIGEN3_INCLUDE_DIR=eigen -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda 
     make -j 2
 
 substituting in your Eigen and CUDA folder, as appropriate.
