@@ -211,6 +211,7 @@ int main_body(variables_map vm)
         //sgd = new MomentumSGDTrainer(&model);
     //else
         sgd = new SimpleSGDTrainer(&model);
+	sgd->eta = 0.01f;
     //sgd = new AdadeltaTrainer(&model);
 
    cerr << "%% Using " << flavour << " recurrent units" << endl;
