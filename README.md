@@ -4,11 +4,11 @@ Deep learning models of machine translation using attention and structural bias.
 C++. Please refer to the [cnn github page](http://github.com/clab/cnn) for more details, including some issues with compiling and running with
 the library. 
 
-This code is an implementation of the following paper:
+This code is an implementation of the [following paper](http://aclweb.org/anthology/N/N16/N16-1102.pdf):
 
-    Incorporating Structural Alignment Biases into an Attentional Neural Translation Model. 
+    Incorporating Structural Alignment Biases into an Attentional Neural Translation Model.
     Trevor Cohn, Cong Duy Vu Hoang, Ekaterina Vymolova, Kaisheng Yao, Chris Dyer and Gholamreza Haffari. 
-    In Proceedings of NAACL-16, 2016. (long paper)
+    In Proceedings of NAACL-16, 2016. 
 
 Please cite the above paper if you use or extend this code.
 
