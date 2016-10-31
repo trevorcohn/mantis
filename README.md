@@ -17,7 +17,7 @@ Please cite the above paper if you use or extend this code.
 Before compiling cnn, you need:
  * [Eigen](https://bitbucket.org/eigen/eigen), using the development version (not release), e.g. 3.3.beta2
  * [cuda](https://developer.nvidia.com/cuda-toolkit) version 7.5 or higher
- * [boost](http://www.boost.org/), e.g., 1.58 using *libboost-dev* ubuntu package
+ * [boost](http://www.boost.org/), e.g., 1.58 using *libboost-all-dev* ubuntu package
  * [cmake](https://cmake.org/), e.g., 3.5.1 using *cmake* ubuntu package
 
 ### Building
