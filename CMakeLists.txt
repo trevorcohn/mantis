@@ -1,7 +1,7 @@
 project(mantis)
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cnn/cmake)
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/dynet/cmake)
 
 # CNN uses Eigen which exploits modern CPU architectures. To get the
 # best possible performance, the following are recommended:
@@ -29,7 +29,7 @@ endif()
 enable_testing()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${PROJECT_SOURCE_DIR}/cnn)
+                    ${PROJECT_SOURCE_DIR}/dynet)
 
 function(find_cudnn)
   set(CUDNN_ROOT "" CACHE PATH "CUDNN root path")
@@ -111,9 +111,9 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 FIND_PACKAGE(Threads REQUIRED)
 set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cnn/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/dynet/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_subdirectory(cnn/cnn)
+add_subdirectory(dynet/dynet)
 add_subdirectory(src)
 enable_testing()

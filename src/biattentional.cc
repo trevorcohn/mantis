@@ -10,7 +10,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 using namespace std;
-using namespace cnn;
+using namespace dynet;
 using namespace boost::program_options;
 
 unsigned LAYERS = 2;
@@ -25,8 +25,8 @@ bool GIZA_F = true;
 bool DOC = false;
 bool FERT = false;
 
-cnn::Dict sd;
-cnn::Dict td;
+dynet::Dict sd;
+dynet::Dict td;
 int kSRC_SOS;
 int kSRC_EOS;
 int kTGT_SOS;
@@ -53,7 +53,7 @@ struct BidirAttentionalModel {
         m_trace_weight = trace_weight;   
     }
 
-    void add_fertility_params(cnn::Model* model)
+    void add_fertility_params(dynet::Model* model)
     {
     	s2t_model.add_fertility_params(model, HIDDEN_DIM, BIDIR);
     	t2s_model.add_fertility_params(model, HIDDEN_DIM, BIDIR);
@@ -107,12 +107,12 @@ struct BidirAttentionalModel {
 	assert(lparams.size() == 2*sm.lookup_parameters_list().size());
 	for (const auto &p : sm.lookup_parameters_list())  {
 	    for (unsigned i = 0; i < p->values.size(); ++i) 
-		memcpy(lparams[lid]->values[i].v, &p->values[i].v[0], sizeof(cnn::real) * p->values[i].d.size());
+		memcpy(lparams[lid]->values[i].v, &p->values[i].v[0], sizeof(dynet::real) * p->values[i].d.size());
 	    lid++;
 	}
 	for (const auto &p : tm.lookup_parameters_list()) {
 	    for (unsigned i = 0; i < p->values.size(); ++i) 
-		memcpy(lparams[lid]->values[i].v, &p->values[i].v[0], sizeof(cnn::real) * p->values[i].d.size());
+		memcpy(lparams[lid]->values[i].v, &p->values[i].v[0], sizeof(dynet::real) * p->values[i].d.size());
 	    lid++;
 	}
 	assert(lid == lparams.size());
@@ -120,9 +120,9 @@ struct BidirAttentionalModel {
 	unsigned did = 0;
 	auto &dparams = model.parameters_list();
 	for (const auto &p : sm.parameters_list()) 
-	    memcpy(dparams[did++]->values.v, &p->values.v[0], sizeof(cnn::real) * p->values.d.size());
+	    memcpy(dparams[did++]->values.v, &p->values.v[0], sizeof(dynet::real) * p->values.d.size());
 	for (const auto &p : tm.parameters_list()) 
-	    memcpy(dparams[did++]->values.v, &p->values.v[0], sizeof(cnn::real) * p->values.d.size());
+	    memcpy(dparams[did++]->values.v, &p->values.v[0], sizeof(dynet::real) * p->values.d.size());
 	assert(did == dparams.size());
     }
 };
@@ -157,7 +157,7 @@ Corpus read_corpus(const string &filename)
 }
 
 int main(int argc, char** argv) {
-    cnn::initialize(argc, argv);
+    dynet::initialize(argc, argv);
 
     // command line processing
     variables_map vm; 
@@ -288,8 +288,8 @@ int main(int argc, char** argv) {
             unsigned i = 0;
             for (auto& spair : dev) {
                 ComputationGraph cg;
-                am.build_graph(spair.first, spair.second, cg);
-                dloss += as_scalar(cg.incremental_forward());
+                auto idloss = am.build_graph(spair.first, spair.second, cg);
+                dloss += as_scalar(cg.incremental_forward(idloss));
                 dloss_s2t += as_scalar(cg.get_value(am.s2t_xent.i));
                 dloss_t2s += as_scalar(cg.get_value(am.t2s_xent.i));
                 dloss_trace += as_scalar(cg.get_value(am.trace_bonus.i));
@@ -324,14 +324,14 @@ int main(int argc, char** argv) {
     	unsigned dchars_s = 0, dchars_t = 0, dchars_tt = 0;
     	for (unsigned i = 0; i < testing.size(); ++i) {
             ComputationGraph cg;
-            am.build_graph(testing[i].first, testing[i].second, cg);
+            auto idloss = am.build_graph(testing[i].first, testing[i].second, cg);
 
             dchars_s += testing[i].first.size() - 1;
             dchars_t += testing[i].second.size() - 1;
             dchars_tt += std::max(testing[i].first.size(), testing[i].second.size()) - 1; // max or min?
 
             //cg.forward();
-            dloss += as_scalar(cg.forward());
+            dloss += as_scalar(cg.forward(idloss));
 
             double loss_s2t = as_scalar(cg.get_value(am.s2t_xent.i));
             double loss_t2s = as_scalar(cg.get_value(am.t2s_xent.i));
@@ -388,12 +388,12 @@ int main(int argc, char** argv) {
             chars_t += spair.second.size() - 1;
             chars_tt += std::max(spair.first.size(), spair.second.size()) - 1; // max or min?
             ++si;
-            am.build_graph(spair.first, spair.second, cg);
-            loss += as_scalar(cg.forward());
+            auto iloss = am.build_graph(spair.first, spair.second, cg);
+            loss += as_scalar(cg.forward(iloss));
             loss_s2t += as_scalar(cg.get_value(am.s2t_xent.i));
             loss_t2s += as_scalar(cg.get_value(am.t2s_xent.i));
             loss_trace += as_scalar(cg.get_value(am.trace_bonus.i));
-            cg.backward();
+            cg.backward(iloss);
             sgd.update(1.0f);
             ++lines;
 
@@ -421,8 +421,8 @@ int main(int argc, char** argv) {
             unsigned dchars_s = 0, dchars_t = 0, dchars_tt = 0;
             for (auto& spair : dev) {
                 ComputationGraph cg;
-                am.build_graph(spair.first, spair.second, cg);
-                dloss += as_scalar(cg.incremental_forward());
+                auto idloss = am.build_graph(spair.first, spair.second, cg);
+                dloss += as_scalar(cg.incremental_forward(idloss));
                 dloss_s2t += as_scalar(cg.get_value(am.s2t_xent.i));
                 dloss_t2s += as_scalar(cg.get_value(am.t2s_xent.i));
                 dloss_trace += as_scalar(cg.get_value(am.trace_bonus.i));
