@@ -58,4 +58,5 @@ target_vocab = threshold_vocab(tfname, 5)
 process_corpus(sfname, tfname, 'train.de-en.unk.cap', source_vocab, target_vocab) #train
 process_corpus('dev.de', 'dev.en', 'dev.de-en.unk.cap', source_vocab, target_vocab) #dev
 process_corpus('test.de', 'test.en', 'test.de-en.unk.cap', source_vocab, target_vocab) #test
+process_test('test.de', 'test.de.unk.cap', source_vocab) #test
 
