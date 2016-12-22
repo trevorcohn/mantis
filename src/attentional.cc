@@ -65,6 +65,10 @@ int main(int argc, char** argv) {
         ("layers,l", value<int>()->default_value(LAYERS), "use <num> layers for RNN components")
         ("align,a", value<int>()->default_value(ALIGN_DIM), "use <num> dimensions for alignment projection")
         ("hidden,h", value<int>()->default_value(HIDDEN_DIM), "use <num> dimensions for recurrent hidden states")
+	("sgd_trainer", value<unsigned>()->default_value(0), "use specific SGD trainer (0: vanilla SGD; 1: momentum SGD; 2: Adagrad; 3: AdaDelta; 4: Adam)")
+	("lr_eta", value<float>()->default_value(0.01f), "SGD learning rate value (e.g., 0.01 for simple SGD trainer)")
+        ("lr_eta_decay", value<float>()->default_value(2.0f), "SGD learning rate decay value")
+	("sparse_updates", value<bool>()->default_value(true), "enable/disable sparse update(s) for lookup parameter(s)")
         ("topk,k", value<int>()->default_value(100), "use <num> top kbest entries, used with --kbest")
         ("epochs,e", value<int>()->default_value(50), "maximum number of training epochs")
         ("gru", "use Gated Recurrent Unit (GRU) for recurrent structure; default RNN")
@@ -202,15 +206,25 @@ int main_body(variables_map vm)
 
 	cerr << "Parameters will be written to: " << fname << endl;
 
-	Model model;
-    //bool use_momentum = false;
-    Trainer* sgd = nullptr;
-    //if (use_momentum)
-        //sgd = new MomentumSGDTrainer(&model);
-    //else
-        sgd = new SimpleSGDTrainer(&model);
-	sgd->eta = 0.01f;
-    //sgd = new AdadeltaTrainer(&model);
+   Model model;
+   Trainer* sgd = nullptr;
+   unsigned sgd_type = vm["sgd_trainer"].as<unsigned>();
+   if (sgd_type == 1)
+       sgd = new MomentumSGDTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 2)
+       sgd = new AdagradTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 3)
+       sgd = new AdadeltaTrainer(model);
+   else if (sgd_type == 4)
+       sgd = new AdamTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 0)//Vanilla SGD trainer
+       sgd = new SimpleSGDTrainer(model, vm["lr_eta"].as<float>());
+   else
+       assert("Unknown SGD trainer type! (0: vanilla SGD; 1: momentum SGD; 2: Adagrad; 3: AdaDelta; 4: Adam)");
+   sgd->eta_decay = vm["lr_eta_decay"].as<float>();
+   sgd->sparse_updates_enabled = vm["sparse_updates"].as<bool>();
+   if (!sgd->sparse_updates_enabled)
+      cerr << "Sparse updates for lookup parameter(s) to be disabled!" << endl;
 
    cerr << "%% Using " << flavour << " recurrent units" << endl;
    AttentionalModel<rnn_t> am(&model, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE,
@@ -300,7 +314,7 @@ void test_decode(Model &model, AM_t &am, string test_file, bool doco, unsigned b
         if (doco)
             source = read_numbered_sentence(line, &sd, num);
         else 
-            source = read_sentence(line, &sd);
+            source = read_sentence(line, sd);
 
 	if (source.front() != kSRC_SOS && source.back() != kSRC_EOS) {
 	    cerr << "Sentence in " << test_file << ":" << lno << " didn't start or end with <s>, </s>\n";
@@ -655,7 +669,7 @@ Corpus read_corpus(const string &filename, bool doco)
         if (doco) 
             read_numbered_sentence_pair(line, &source, &sd, &target, &td, identifiers);
         else
-            read_sentence_pair(line, &source, &sd, &target, &td);
+            read_sentence_pair(line, source, sd, target, td);
         corpus.push_back(SentencePair(source, target, identifiers[0]));
         stoks += source.size();
         ttoks += target.size();

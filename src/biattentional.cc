@@ -141,7 +141,7 @@ Corpus read_corpus(const string &filename)
     while(getline(in, line)) {
         ++lc;
         Sentence source, target;
-        read_sentence_pair(line, &source, &sd, &target, &td);
+        read_sentence_pair(line, source, sd, target, td);
         corpus.push_back(SentencePair(source, target));
         stoks += source.size();
         ttoks += target.size();
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
     double best = 9e+99;
 
     Model model;
-    SimpleSGDTrainer sgd(&model);
+    SimpleSGDTrainer sgd(model);
     BidirAttentionalModel<LSTMBuilder> am(&model, 0.1);
 
     bool add_fer = false;

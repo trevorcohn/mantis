@@ -130,9 +130,9 @@ AttentionalModel<Builder>::AttentionalModel(dynet::Model* model,
     unsigned align_dim, bool _rnn_src_embeddings, bool _giza_positional, 
     bool _giza_markov, bool _giza_fertility, bool _doc_context,
     bool _global_fertility)
-: builder(layers, (_rnn_src_embeddings) ? 3*hidden_dim : 2*hidden_dim, hidden_dim, model),
-  builder_src_fwd(1, hidden_dim, hidden_dim, model),
-  builder_src_bwd(1, hidden_dim, hidden_dim, model),
+: builder(layers, (_rnn_src_embeddings) ? 3*hidden_dim : 2*hidden_dim, hidden_dim, *model),
+  builder_src_fwd(1, hidden_dim, hidden_dim, *model),
+  builder_src_bwd(1, hidden_dim, hidden_dim, *model),
   rnn_src_embeddings(_rnn_src_embeddings), 
   giza_positional(_giza_positional), giza_markov(_giza_markov), giza_fertility(_giza_fertility),
   doc_context(_doc_context),
@@ -460,13 +460,13 @@ Expression AttentionalModel<Builder>::BuildGraph(const std::vector<int> &source,
             /* log-Normal distribution */
             Expression log_fert = log(i_total_trim);
             Expression delta = log_fert - mu_trim;
-            Expression exponent = cdiv(-cwise_multiply(delta, delta), 2.0f * var_trim);
+            Expression exponent = cdiv(-cmult(delta, delta), 2.0f * var_trim);
             Expression partition = -log_fert - 0.5 * log(2.0f * var_trim * 3.14159265359);
             *fertility = -sum_cols(transpose(partition + exponent));
 #else
             /* Normal distribution */
             Expression delta = i_total_trim - mu_trim;
-            Expression exponent = cdiv(-cwise_multiply(delta, delta), 2.0f * var_trim);
+            Expression exponent = cdiv(-cmult(delta, delta), 2.0f * var_trim);
             Expression partition = -0.5 * log(2.0f * var_trim * 3.14159265359);
             *fertility = -sum_cols(transpose(partition + exponent));
             // note that as this is the value of the normal density, the errors
