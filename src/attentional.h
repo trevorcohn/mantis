@@ -329,9 +329,14 @@ Expression AttentionalModel<Builder>::add_input(int trg_tok, int t, ComputationG
     // alignment input 
     Expression i_wah_rep;
     if (t > 0) {
-	//auto i_h_tm1 = builder.final_h().back();
-	auto i_h_tm1 = concatenate(builder.final_h());
+	Expression i_h_tm1;
+	if (prev_state)
+	    i_h_tm1 = concatenate(builder.get_h(*prev_state));// This is required for beam search decoding implementation.
+	else
+	    i_h_tm1 = concatenate(builder.final_h());
+
 	Expression i_wah = i_Wa * i_h_tm1;
+
 	// want numpy style broadcasting, but have to do this manually
 	i_wah_rep = concatenate_cols(std::vector<Expression>(slen, i_wah));
     }
