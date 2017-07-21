@@ -10,7 +10,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 using namespace std;
-using namespace cnn;
+using namespace dynet;
 using namespace boost::program_options;
 
 unsigned LAYERS = 1; // 2
@@ -19,8 +19,8 @@ unsigned ALIGN_DIM = 32;   // 128
 unsigned SRC_VOCAB_SIZE = 0;
 unsigned TGT_VOCAB_SIZE = 0;
 
-cnn::Dict sd;
-cnn::Dict td;
+dynet::Dict sd;
+dynet::Dict td;
 int kSRC_SOS;
 int kSRC_EOS;
 int kTGT_SOS;
@@ -45,7 +45,7 @@ template <class rnn_t>
 int main_body(variables_map vm);
 
 int main(int argc, char** argv) {
-    cnn::initialize(argc, argv);
+    dynet::initialize(argc, argv);
 
     // command line processing
     variables_map vm; 
@@ -65,6 +65,10 @@ int main(int argc, char** argv) {
         ("layers,l", value<int>()->default_value(LAYERS), "use <num> layers for RNN components")
         ("align,a", value<int>()->default_value(ALIGN_DIM), "use <num> dimensions for alignment projection")
         ("hidden,h", value<int>()->default_value(HIDDEN_DIM), "use <num> dimensions for recurrent hidden states")
+	("sgd_trainer", value<unsigned>()->default_value(0), "use specific SGD trainer (0: vanilla SGD; 1: momentum SGD; 2: Adagrad; 3: AdaDelta; 4: Adam)")
+	("lr_eta", value<float>()->default_value(0.01f), "SGD learning rate value (e.g., 0.01 for simple SGD trainer)")
+        ("lr_eta_decay", value<float>()->default_value(2.0f), "SGD learning rate decay value")
+	("sparse_updates", value<bool>()->default_value(true), "enable/disable sparse update(s) for lookup parameter(s)")
         ("topk,k", value<int>()->default_value(100), "use <num> top kbest entries, used with --kbest")
         ("epochs,e", value<int>()->default_value(50), "maximum number of training epochs")
         ("gru", "use Gated Recurrent Unit (GRU) for recurrent structure; default RNN")
@@ -112,8 +116,8 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
         bool doco, float coverage, bool display, bool fert);
 
 template <class AM_t> void test_rescore(Model &model, AM_t &am, Corpus &testing, bool doco);
-template <class AM_t> void test_decode(Model &model, AM_t &am, std::string test_file, bool doco, int beam);
-template <class AM_t> void test_kbest_arcs(Model &model, AM_t &am, string test_file, int top_k);
+template <class AM_t> void test_decode(Model &model, AM_t &am, std::string test_file, bool doco, unsigned beam);
+template <class AM_t> void test_kbest_arcs(Model &model, AM_t &am, string test_file, unsigned top_k);
 template <class AM_t> void fert_stats(Model &model, AM_t &am, Corpus &devel, bool global_fert);
 
 const Sentence* context(const Corpus &corpus, unsigned i);
@@ -146,8 +150,6 @@ int main_body(variables_map vm)
     if (vm.count("lstm"))	flavour = "LSTM";
     else if (vm.count("gru"))	flavour = "GRU";
 
-    typedef vector<int> Sentence;
-    typedef pair<Sentence, Sentence> SentencePair;
     Corpus training, devel, testing;
     string line;
     cerr << "Reading training data from " << vm["train"].as<string>() << "...\n";
@@ -204,15 +206,25 @@ int main_body(variables_map vm)
 
 	cerr << "Parameters will be written to: " << fname << endl;
 
-	Model model;
-    //bool use_momentum = false;
-    Trainer* sgd = nullptr;
-    //if (use_momentum)
-        //sgd = new MomentumSGDTrainer(&model);
-    //else
-        sgd = new SimpleSGDTrainer(&model);
-	sgd->eta = 0.01f;
-    //sgd = new AdadeltaTrainer(&model);
+   Model model;
+   Trainer* sgd = nullptr;
+   unsigned sgd_type = vm["sgd_trainer"].as<unsigned>();
+   if (sgd_type == 1)
+       sgd = new MomentumSGDTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 2)
+       sgd = new AdagradTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 3)
+       sgd = new AdadeltaTrainer(model);
+   else if (sgd_type == 4)
+       sgd = new AdamTrainer(model, vm["lr_eta"].as<float>());
+   else if (sgd_type == 0)//Vanilla SGD trainer
+       sgd = new SimpleSGDTrainer(model, vm["lr_eta"].as<float>());
+   else
+       assert("Unknown SGD trainer type! (0: vanilla SGD; 1: momentum SGD; 2: Adagrad; 3: AdaDelta; 4: Adam)");
+   sgd->eta_decay = vm["lr_eta_decay"].as<float>();
+   sgd->sparse_updates_enabled = vm["sparse_updates"].as<bool>();
+   if (!sgd->sparse_updates_enabled)
+      cerr << "Sparse updates for lookup parameter(s) to be disabled!" << endl;
 
    cerr << "%% Using " << flavour << " recurrent units" << endl;
    AttentionalModel<rnn_t> am(&model, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE,
@@ -234,19 +246,19 @@ int main_body(variables_map vm)
                 vm["epochs"].as<int>(), doco, vm["coverage"].as<float>(), vm.count("display"),
                 fert);
     else if (vm.count("kbest"))
-    	test_kbest_arcs(model, am, vm["kbest"].as<string>(), vm["topk"].as<int>());
+    	test_kbest_arcs(model, am, vm["kbest"].as<string>(), vm["topk"].as<unsigned>());
     else if (vm.count("test")) {
         if (vm.count("rescore"))
             test_rescore(model, am, testing, doco);
         else // test
-            test_decode(model, am, vm["test"].as<string>(), doco, vm["beam"].as<int>());
+            test_decode(model, am, vm["test"].as<string>(), doco, vm["beam"].as<unsigned>());
     }
     else if (vm.count("fert-stats"))
         fert_stats(model, am, devel, vm.count("fertility"));
 
     delete sgd;
 
-    //cnn::Free();
+    //dynet::Free();
 
     return EXIT_SUCCESS;
 }
@@ -264,9 +276,9 @@ void test_rescore(Model &model, AM_t &am, Corpus &testing, bool doco)
         tie(ssent, tsent, docid) = testing[i];
 
 	ComputationGraph cg;
-        am.BuildGraph(ssent, tsent, cg, nullptr, (doco) ? context(testing, i) : nullptr);
+        auto iloss = am.BuildGraph(ssent, tsent, cg, nullptr, (doco) ? context(testing, i) : nullptr);
 
-	double loss = as_scalar(cg.forward());
+	double loss = as_scalar(cg.forward(iloss));
         cout << i << " |||";
 	for (auto &w: ssent)
 	    cout << " " << sd.convert(w);
@@ -286,10 +298,8 @@ void test_rescore(Model &model, AM_t &am, Corpus &testing, bool doco)
 }
 
 template <class AM_t>
-void test_decode(Model &model, AM_t &am, string test_file, bool doco, int beam)
+void test_decode(Model &model, AM_t &am, string test_file, bool doco, unsigned beam)
 {
-    double tloss = 0;
-    int tchars = 0;
     int lno = 0;
 
     cerr << "Reading test examples from " << test_file << endl;
@@ -304,7 +314,7 @@ void test_decode(Model &model, AM_t &am, string test_file, bool doco, int beam)
         if (doco)
             source = read_numbered_sentence(line, &sd, num);
         else 
-            source = read_sentence(line, &sd);
+            source = read_sentence(line, sd);
 
 	if (source.front() != kSRC_SOS && source.back() != kSRC_EOS) {
 	    cerr << "Sentence in " << test_file << ":" << lno << " didn't start or end with <s>, </s>\n";
@@ -339,7 +349,7 @@ void test_decode(Model &model, AM_t &am, string test_file, bool doco, int beam)
 }
 
 template <class AM_t>
-void test_kbest_arcs(Model &model, AM_t &am, string test_file, int top_k)
+void test_kbest_arcs(Model &model, AM_t &am, string test_file, unsigned top_k)
 {
     // only suitable for monolingual setting, of predicting a sentence given preceeding sentence
     cerr << "Reading test examples from " << test_file << endl;
@@ -369,7 +379,7 @@ void test_kbest_arcs(Model &model, AM_t &am, string test_file, int top_k)
                     errs.push_back(i_err);
                 }
                 Expression i_nerr = sum(errs);
-                double loss = as_scalar(cg.incremental_forward());
+                double loss = as_scalar(cg.incremental_forward(i_nerr));
 
                 //cout << last_last_id << ":" << last_id << " |||";
                 //for (auto &w: source) cout << " " << sd.convert(w);
@@ -483,9 +493,9 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
     }
 
     bool first = true;
-    int report = 0;
+    unsigned report = 0;
     unsigned lines = 0;
-    int epoch = 0;
+    unsigned epoch = 0;
     Sentence ssent, tsent;
     int docid;
 
@@ -497,8 +507,8 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
             tie(ssent, tsent, docid) = devel[i];
             ComputationGraph cg;
             Expression alignment;
-            am.BuildGraph(ssent, tsent, cg, &alignment, (doco) ? context(devel, i) : nullptr);
-            cg.forward();
+            auto iloss = am.BuildGraph(ssent, tsent, cg, &alignment, (doco) ? context(devel, i) : nullptr);
+            cg.forward(iloss);
 
             cout << "\n====== SENTENCE " << i << " =========\n";
             am.display_ascii(ssent, tsent, cg, alignment, sd, td);
@@ -586,7 +596,7 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
                 objective = objective + fertility_nll;
 
             // perform forward computation for aggregate objective
-            cg.forward();
+            cg.forward(objective);
 
             // grab the parts of the objective
             loss += as_scalar(cg.get_value(xent.i));
@@ -595,7 +605,7 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
             if (fert) 
                 loss_fert += as_scalar(cg.get_value(fertility_nll.i));
 
-            cg.backward();
+            cg.backward(objective);
 	    sgd.update();
             ++lines;
 
@@ -627,8 +637,8 @@ void train(Model &model, AM_t &am, Corpus &training, Corpus &devel,
             for (unsigned i = 0; i < devel.size(); ++i) {
                 tie(ssent, tsent, docid) = devel[i];
                 ComputationGraph cg;
-                am.BuildGraph(ssent, tsent, cg, nullptr, (doco) ? context(devel, i) : nullptr, nullptr, nullptr);
-                dloss += as_scalar(cg.forward());
+                auto idloss = am.BuildGraph(ssent, tsent, cg, nullptr, (doco) ? context(devel, i) : nullptr, nullptr, nullptr);
+                dloss += as_scalar(cg.forward(idloss));
                 dchars += tsent.size() - 1;
             }
             if (dloss < best) {
@@ -659,7 +669,7 @@ Corpus read_corpus(const string &filename, bool doco)
         if (doco) 
             read_numbered_sentence_pair(line, &source, &sd, &target, &td, identifiers);
         else
-            read_sentence_pair(line, &source, &sd, &target, &td);
+            read_sentence_pair(line, source, sd, target, td);
         corpus.push_back(SentencePair(source, target, identifiers[0]));
         stoks += source.size();
         ttoks += target.size();

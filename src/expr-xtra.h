@@ -1,16 +1,16 @@
 #pragma once
 
-#include "cnn/nodes.h"
-#include "cnn/cnn.h"
-#include "cnn/training.h"
-#include "cnn/timing.h"
-#include "cnn/rnn.h"
-#include "cnn/gru.h"
-#include "cnn/lstm.h"
-#include "cnn/dict.h"
-#include "cnn/expr.h"
+#include "dynet/nodes.h"
+#include "dynet/dynet.h"
+#include "dynet/training.h"
+#include "dynet/timing.h"
+#include "dynet/rnn.h"
+#include "dynet/gru.h"
+#include "dynet/lstm.h"
+#include "dynet/dict.h"
+#include "dynet/expr.h"
 
-using namespace cnn;
+using namespace dynet;
 
 // Chris -- this should be a library function
 Expression arange(ComputationGraph &cg, unsigned begin, unsigned end, bool log_transform, std::vector<float> *aux_mem) 

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "cnn/nodes.h"
-#include "cnn/cnn.h"
-#include "cnn/training.h"
-#include "cnn/timing.h"
-#include "cnn/rnn.h"
-#include "cnn/gru.h"
-#include "cnn/lstm.h"
-#include "cnn/dict.h"
-#include "cnn/expr.h"
+#include "dynet/nodes.h"
+#include "dynet/dynet.h"
+#include "dynet/training.h"
+#include "dynet/timing.h"
+#include "dynet/rnn.h"
+#include "dynet/gru.h"
+#include "dynet/lstm.h"
+#include "dynet/dict.h"
+#include "dynet/expr.h"
 #include "expr-xtra.h"
 
 #include <algorithm>
@@ -21,7 +21,7 @@
 
 #define RNN_H0_IS_ZERO
 
-namespace cnn {
+namespace dynet {
 
 template <class Builder>
 struct AttentionalModel {
@@ -51,12 +51,12 @@ struct AttentionalModel {
             Dict &tdict, const std::vector<int>* ctx=0);
 
     std::vector<int> beam_decode(const std::vector<int> &source, ComputationGraph& cg, 
-            int beam_width, Dict &tdict, const std::vector<int>* ctx=0);
+            unsigned beam_width, Dict &tdict, const std::vector<int>* ctx=0);
 
     std::vector<int> sample(const std::vector<int> &source, ComputationGraph& cg, 
             Dict &tdict, const std::vector<int>* ctx=0);
 
-    void add_fertility_params(cnn::Model* model, unsigned hidden_dim, bool _rnn_src_embeddings);
+    void add_fertility_params(dynet::Model* model, unsigned hidden_dim, bool _rnn_src_embeddings);
 
     LookupParameter p_cs;
     LookupParameter p_ct;
@@ -125,14 +125,14 @@ struct AttentionalModel {
     KTHXBYE(expression) 
 
 template <class Builder>
-AttentionalModel<Builder>::AttentionalModel(cnn::Model* model,
+AttentionalModel<Builder>::AttentionalModel(dynet::Model* model,
     unsigned vocab_size_src, unsigned _vocab_size_tgt, unsigned layers, unsigned hidden_dim, 
     unsigned align_dim, bool _rnn_src_embeddings, bool _giza_positional, 
     bool _giza_markov, bool _giza_fertility, bool _doc_context,
     bool _global_fertility)
-: builder(layers, (_rnn_src_embeddings) ? 3*hidden_dim : 2*hidden_dim, hidden_dim, model),
-  builder_src_fwd(1, hidden_dim, hidden_dim, model),
-  builder_src_bwd(1, hidden_dim, hidden_dim, model),
+: builder(layers, (_rnn_src_embeddings) ? 3*hidden_dim : 2*hidden_dim, hidden_dim, *model),
+  builder_src_fwd(1, hidden_dim, hidden_dim, *model),
+  builder_src_bwd(1, hidden_dim, hidden_dim, *model),
   rnn_src_embeddings(_rnn_src_embeddings), 
   giza_positional(_giza_positional), giza_markov(_giza_markov), giza_fertility(_giza_fertility),
   doc_context(_doc_context),
@@ -195,7 +195,7 @@ AttentionalModel<Builder>::AttentionalModel(cnn::Model* model,
 }
 
 template <class Builder>
-void AttentionalModel<Builder>::add_fertility_params(cnn::Model* model, unsigned hidden_dim, bool _rnn_src_embeddings)
+void AttentionalModel<Builder>::add_fertility_params(dynet::Model* model, unsigned hidden_dim, bool _rnn_src_embeddings)
 {
     if (_rnn_src_embeddings) {
          p_Wfhid = model->add_parameters({hidden_dim, 2*hidden_dim});
@@ -329,9 +329,14 @@ Expression AttentionalModel<Builder>::add_input(int trg_tok, int t, ComputationG
     // alignment input 
     Expression i_wah_rep;
     if (t > 0) {
-	//auto i_h_tm1 = builder.final_h().back();
-	auto i_h_tm1 = concatenate(builder.final_h());
+	Expression i_h_tm1;
+	if (prev_state)
+	    i_h_tm1 = concatenate(builder.get_h(*prev_state));// This is required for beam search decoding implementation.
+	else
+	    i_h_tm1 = concatenate(builder.final_h());
+
 	Expression i_wah = i_Wa * i_h_tm1;
+
 	// want numpy style broadcasting, but have to do this manually
 	i_wah_rep = concatenate_cols(std::vector<Expression>(slen, i_wah));
     }
@@ -460,13 +465,13 @@ Expression AttentionalModel<Builder>::BuildGraph(const std::vector<int> &source,
             /* log-Normal distribution */
             Expression log_fert = log(i_total_trim);
             Expression delta = log_fert - mu_trim;
-            Expression exponent = cdiv(-cwise_multiply(delta, delta), 2.0f * var_trim);
+            Expression exponent = cdiv(-cmult(delta, delta), 2.0f * var_trim);
             Expression partition = -log_fert - 0.5 * log(2.0f * var_trim * 3.14159265359);
             *fertility = -sum_cols(transpose(partition + exponent));
 #else
             /* Normal distribution */
             Expression delta = i_total_trim - mu_trim;
-            Expression exponent = cdiv(-cwise_multiply(delta, delta), 2.0f * var_trim);
+            Expression exponent = cdiv(-cmult(delta, delta), 2.0f * var_trim);
             Expression partition = -0.5 * log(2.0f * var_trim * 3.14159265359);
             *fertility = -sum_cols(transpose(partition + exponent));
             // note that as this is the value of the normal density, the errors
@@ -495,8 +500,8 @@ AttentionalModel<Builder>::display_ascii(const std::vector<int> &source, const s
     // display the alignment
     //float I = target.size() - 1;
     //float J = source.size() - 1;
-    float I = target.size();
-    float J = source.size();
+    unsigned I = target.size();
+    unsigned J = source.size();
     //vector<string> symbols{"\u2588","\u2589","\u258A","\u258B","\u258C","\u258D","\u258E","\u258F"};
     vector<string> symbols{".","o","*","O","@"};
     int num_symbols = symbols.size();
@@ -516,18 +521,18 @@ AttentionalModel<Builder>::display_ascii(const std::vector<int> &source, const s
     cout.setf(ios_base::adjustfield, ios_base::left);
     cout << setw(12) << "source" << "  ";
     cout.setf(ios_base::adjustfield, ios_base::right);
-    for (int j = 0; j < J; ++j) 
+    for (unsigned j = 0; j < J; ++j) 
         cout << setw(2) << j << ' ';
     cout << endl;
 
-    for (int i = 0; i < I; ++i) {
+    for (unsigned i = 0; i < I; ++i) {
         cout.setf(ios_base::adjustfield, ios_base::left);
         //cout << setw(12) << td.convert(target[i+1]) << "  ";
         cout << setw(12) << td.convert(target[i]) << "  ";
         cout.setf(ios_base::adjustfield, ios_base::right);
         float max_v = 0;
         int max_j = -1;
-        for (int j = 0; j < J; ++j) {
+        for (unsigned j = 0; j < J; ++j) {
             float v = TensorTools::AccessElement(a, Dim({(unsigned int)j, (unsigned int)i}));
             string symbol;
             for (int s = 0; s <= num_symbols; ++s) {
@@ -547,7 +552,7 @@ AttentionalModel<Builder>::display_ascii(const std::vector<int> &source, const s
         cout << setw(20) << "max Pr=" << setprecision(3) << setw(5) << max_v << " @ " << max_j << endl;
     }
     cout << resetiosflags(ios_base::adjustfield);
-    for (int j = 0; j < J; ++j) 
+    for (unsigned j = 0; j < J; ++j) 
         cout << j << ":" << sd.convert(source[j]) << ' ';
     cout << endl;
 }
@@ -560,21 +565,21 @@ AttentionalModel<Builder>::display_tikz(const std::vector<int> &source, const st
     using namespace std;
 
     // display the alignment
-    float I = target.size();
-    float J = source.size();
+    unsigned I = target.size();
+    unsigned J = source.size();
 
     const Tensor &a = cg.get_value(alignment.i);
     cout << a.d[0] << " x " << a.d[1] << endl;
 
     cout << "\\begin{tikzpicture}[scale=0.5]\n";
-    for (int j = 0; j < J; ++j) 
+    for (unsigned j = 0; j < J; ++j) 
         cout << "\\node[anchor=west,rotate=90] at (" << j+0.5 << ", " << I+0.2 << ") { " << sd.convert(source[j]) << " };\n";
-    for (int i = 0; i < I; ++i) 
+    for (unsigned i = 0; i < I; ++i) 
         cout << "\\node[anchor=west] at (" << J+0.2 << ", " << I-i-0.5 << ") { " << td.convert(target[i]) << " };\n";
 
     float eps = 0.01;
-    for (int i = 0; i < I; ++i) {
-        for (int j = 0; j < J; ++j) {
+    for (unsigned i = 0; i < I; ++i) {
+        for (unsigned j = 0; j < J; ++j) {
             float v = TensorTools::AccessElement(a, Dim({(unsigned int)j, (unsigned int)i}));
             //int val = int(pow(v, 0.5) * 100);
             int val = int(v * 100);
@@ -589,7 +594,7 @@ AttentionalModel<Builder>::display_tikz(const std::vector<int> &source, const st
 template <class Builder>
 std::vector<int>
 AttentionalModel<Builder>::greedy_decode(const std::vector<int> &source, ComputationGraph& cg, 
-        cnn::Dict &tdict, const std::vector<int>* ctx)
+        dynet::Dict &tdict, const std::vector<int>* ctx)
 {
     const int sos_sym = tdict.convert("<s>");
     const int eos_sym = tdict.convert("</s>");
@@ -598,7 +603,7 @@ AttentionalModel<Builder>::greedy_decode(const std::vector<int> &source, Computa
     target.push_back(sos_sym); 
 
     //std::cerr << tdict.convert(target.back());
-    int t = 0;
+    unsigned t = 0;
     start_new_instance(source, cg, ctx);
     while (target.back() != eos_sym) 
     {
@@ -607,7 +612,7 @@ AttentionalModel<Builder>::greedy_decode(const std::vector<int> &source, Computa
 
         // find the argmax next word (greedy)
         unsigned w = 0;
-        auto dist = as_vector(cg.incremental_forward()); // evaluates last expression, i.e., ydist
+        auto dist = as_vector(cg.incremental_forward(ydist));
         auto pr_w = dist[w];
         for (unsigned x = 1; x < dist.size(); ++x) {
             if (dist[x] > pr_w) {
@@ -647,11 +652,11 @@ struct Hypothesis {
 
 template <class Builder>
 std::vector<int>
-AttentionalModel<Builder>::beam_decode(const std::vector<int> &source, ComputationGraph& cg, int beam_width, 
-        cnn::Dict &tdict, const std::vector<int>* ctx)
+AttentionalModel<Builder>::beam_decode(const std::vector<int> &source, ComputationGraph& cg, 
+	unsigned beam_width, dynet::Dict &tdict, const std::vector<int>* ctx)
 {
-    const int sos_sym = tdict.convert("<s>");
-    const int eos_sym = tdict.convert("</s>");
+    const unsigned sos_sym = tdict.convert("<s>");
+    const unsigned eos_sym = tdict.convert("</s>");
 
     start_new_instance(source, cg, ctx);
 
@@ -661,7 +666,7 @@ AttentionalModel<Builder>::beam_decode(const std::vector<int> &source, Computati
     std::vector<unsigned> vocab(boost::copy_range<std::vector<unsigned>>(boost::irange(0u, vocab_size_tgt)));
     std::vector<Hypothesis> completed;
 
-    for (int steps = 0; completed.size() < beam_width && steps < 2*source.size(); ++steps) {
+    for (unsigned steps = 0; completed.size() < beam_width && steps < 2*source.size(); ++steps) {
         std::vector<Hypothesis> new_chart;
 
         for (auto &hprev: chart) {
@@ -672,8 +677,7 @@ AttentionalModel<Builder>::beam_decode(const std::vector<int> &source, Computati
             Expression ydist = softmax(i_scores); // compiler warning, but see below
 
             // find the top k best next words
-            unsigned w = 0;
-            auto dist = as_vector(cg.incremental_forward()); // evaluates last expression, i.e., ydist
+            auto dist = as_vector(cg.incremental_forward(ydist));
             std::partial_sort(vocab.begin(), vocab.begin()+beam_width, vocab.end(), 
                     [&dist](unsigned v1, unsigned v2) { return dist[v1] > dist[v2]; });
 
@@ -709,7 +713,7 @@ AttentionalModel<Builder>::beam_decode(const std::vector<int> &source, Computati
 
 template <class Builder>
 std::vector<int>
-AttentionalModel<Builder>::sample(const std::vector<int> &source, ComputationGraph& cg, cnn::Dict &tdict,
+AttentionalModel<Builder>::sample(const std::vector<int> &source, ComputationGraph& cg, dynet::Dict &tdict,
         const std::vector<int> *ctx)
 {
     const int sos_sym = tdict.convert("<s>");
@@ -727,7 +731,7 @@ AttentionalModel<Builder>::sample(const std::vector<int> &source, ComputationGra
         Expression ydist = softmax(i_scores);
 
 	// in rnnlm.cc there's a loop around this block -- why? can incremental_forward fail?
-        auto dist = as_vector(cg.incremental_forward());
+        auto dist = as_vector(cg.incremental_forward(ydist));
 	double p = rand01();
         unsigned w = 0;
         for (; w < dist.size(); ++w) {
@@ -759,11 +763,11 @@ AttentionalModel<Builder>::display_fertility(const std::vector<int> &source, Dic
     Expression vbias = concatenate(std::vector<Expression>(slen, parameter(cg, p_bfvar)));
     Expression fhid = tanh(transpose(fbias + parameter(cg, p_Wfhid) * src));  
     Expression mu = mbias + fhid * parameter(cg, p_Wfmu);
-    auto mu_vec = as_vector(cg.incremental_forward()); // evaluates last expression
+    auto mu_vec = as_vector(cg.incremental_forward(mu)); 
     Expression var = exp(vbias + fhid * parameter(cg, p_Wfvar));
-    auto var_vec = as_vector(cg.incremental_forward()); // evaluates last expression
+    auto var_vec = as_vector(cg.incremental_forward(var)); 
 
-    for (int j = 1; j < slen-1; ++j) 
+    for (unsigned j = 1; j < slen-1; ++j) 
         std::cout << sd.convert(source[j]) << '\t' << mu_vec[j] << '\t' << var_vec[j] << '\n';
 }
 
@@ -776,9 +780,9 @@ AttentionalModel<Builder>::display_empirical_fertility(const std::vector<int> &s
     BuildGraph(source, target, cg, &alignment);
 
     Expression totals = sum_cols(alignment);
-    auto totals_vec = as_vector(cg.incremental_forward()); // evaluates last expression
+    auto totals_vec = as_vector(cg.incremental_forward(totals));
 
-    for (int j = 0; j < slen; ++j) 
+    for (unsigned j = 0; j < slen; ++j) 
         std::cout << sd.convert(source[j]) << '\t' << totals_vec[j] << '\n';
 }
 
